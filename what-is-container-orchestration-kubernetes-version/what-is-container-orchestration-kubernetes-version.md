@@ -2,11 +2,15 @@
 
 In a previous post, [What is Container Orchestration?](https://capstonec.com/what-is-container-orchestration/), I explained container orchestration using some examples based on Docker Swarm. While Docker Swarm is undeniably easier to both use and explain, [Kubernetes](https://kubernetes.io/) is by far the most prevalent container orchestrator today. So, I'm going to go through the same examples from that previous post but, this time, use Kubernetes. One of the great things about [Docker Enterprise](https://www.docker.com/products/docker-enterprise) is it supports both Swarm and Kubernetes so I didn't have to change my infrastructure at all.
 
+## Visualizing Orchestration
+
+I used the [Docker Swarm Visualizer](https://github.com/dockersamples/docker-swarm-visualizer) in the videos of the last post to help you visualize what was happening. For visualizing Kubernetes, I tried Brendan Burns' [gcp-live-k8s-visualizer](https://github.com/brendandburns/gcp-live-k8s-visualizer) and [Weaveworks Scope](https://github.com/weaveworks/scope). I found the former doesn't tie in the nodes enough and the latter has too much for simple demos. However, Scope has a lot of capabilities I'd like to explore further so I used it in the videos below.
+
 ## Taints and Tolerations
 
 With Swarm I used node labels to designate two of the worker nodes in my cluster as being in my private cloud and two in my public cloud. Then, when I created the Swarm service, I used constraints to only run the service (initially) in my private cloud. In Kubernetes, the (rough) equivalent to labels are taints and the (rough) equivalent to constraints are tolerations. There are a lot more uses for taints and tolerations. If you want to learn more about them, see [Taints and Tolerations](https://kubernetes.io/docs/concepts/configuration/taint-and-toleration/) in the Kubernetes documentation.
 
-In our case, we are going to taint two of our worker nodes with the key-value pair of `cloud=private` and the effect of `NoSchedule`. For the other two, we use the key-value pair of `cloud=public` and the same effect. In essence, this tells the scheduler to not schedule anything on that node unless it has a toleration for the specified key-value pair.
+In our case, we are going to taint two of our worker nodes with the key-value pair of `cloud=private` and the effect of `NoSchedule`. For the other two, we use the key-value pair of `cloud=public` and the same effect. In essence, this tells the scheduler to not schedule anything on that node unless it has toleration for the specified key-value pair.
 
 ```bash
 $ kubectl taint nodes ip-172-30-14-227.us-east-2.compute.internal cloud=private:NoSchedule
@@ -15,7 +19,7 @@ $ kubectl taint nodes ip-172-30-23-45.us-east-2.compute.internal cloud=public:No
 $ kubectl taint nodes ip-172-30-23-45.us-east-2.compute.internal cloud=public:NoSchedule
 ```
 
-## Demonstrate Deploying, Scaling and Upgrading
+## Demonstrate Deploying, Scaling, and Upgrading
 
 Once again, we start by creating a service using the official NGINX 1.14 image. The service will have replicas running in my private cloud. We will accomplish this by applying the following resource configuration files, kens-deployment.yaml and kens-service.yaml. The first creates the replica set responsible for the pods with the NGINX containers and the second creates a load balancer service so we can access it.
 
@@ -127,32 +131,22 @@ $ kubectl apply -f kens-deployment.yaml
 
 ## Demonstrate Failures
 
-We'll start by demonstrating an all to typical upgrade failure scenario. As with Swarm, Kubernetes has quite a few options for detecting upgrade failures and automatically rolling back to the previous version. In this case, we're going to assume the upgrade succeeded but we found a problem post-upgrade. There are still several options available to us. You could use the `kubectl rollout` feature for deployments. (See [Deployments](https://kubernetes.io/docs/concepts/workloads/controllers/deployment/) in the Kubernetes documentation.) However, we're a big believer in our current state matching our desired state along with both matching what we have under source control. So, we'll update the deployment specification with old image tag and apply it. (Or, maybe, we'll revert the change in our source and our CI/CD pipeline will apply it for us.) In any case, we'll see a rolling update to the pods.
+We'll start by demonstrating an all to typical upgrade failure scenario. As with Swarm, Kubernetes has quite a few options for detecting upgrade failures and automatically rolling back to the previous version. In this case, we're going to assume the upgrade succeeded but we found a problem post-upgrade. There are still several options available to us. You could use the `kubectl rollout` feature for deployments. (See [Deployments](https://kubernetes.io/docs/concepts/workloads/controllers/deployment/) in the Kubernetes documentation.) However, we're a big believer in our current state matching our desired state along with matching what we have under source control. So, we'll update the deployment specification with an old image tag and apply it. (Or, maybe, we'll revert the change in our source and our CI/CD pipeline will apply it for us.) In any case, we'll see a rolling update to the pods.
 
-Now, we'll demonstrate the failure of a container by deleting a pod.
+Now, we'll demonstrate the failure of a container by deleting a pod. You will see the scheduler notices almost immediately that the current state, i.e. 3 pods, doesn't match the desired state, i.e. 4 pods, so it starts another one.
 
-Server failure
+To simulate a server failure, I'm going to shutdown one of the worker nodes with the private cloud taint. Since my cluster is hosted in AWS, I'll use the AWS console to stop the instance. Again, the scheduler sees the current state doesn't match the desired state so it starts another pod on one of the available worker nodes.
 
-```bash
-$ kubectl drain ip-172-30-23-45.us-east-2.compute.internal --ignore-daemonsetsk
-```
+Finally, to simulate a site or datacenter failure, I'll use the AWS console to stop the worker node with the private cloud taint. As before, another pod is started. More significantly, the last two scenarios can be viewed as disaster recovery. One site, our private cloud, is down and all the work has been migrated to our other site, our public cloud. This will work in any similar situation, i.e. two on-premises datacenters, an on-premises datacenter with a co-location facility, an on-premises datacenter with a public cloud (hybrid cloud), or two public clouds (multi-cloud).
 
-Site (datacenter) failure
-
-```bash
-$ kubectl drain ip-172-30-23-45.us-east-2.compute.internal --ignore-daemonsetsk
-```
 
 ## Resetting
 
-We'll reset everything back to the way we started by
-1. Uncordon the two worker nodes we drained.
-2. Deleting the service and deployment we created.
-3. Removing the taints from the worker nodes.
+We'll reset everything back to the way we started by:
+1. Deleting the service and deployment we created; and
+2. Removing the taints from the worker nodes.
 
 ```bash
-$ kubectl uncordon ip-172-30-23-45.us-east-2.compute.internal
-$ kubectl uncordon ip-172-30-23-45.us-east-2.compute.internal
 $ kubectl delete -f kens-service.yaml
 $ kubectl delete -f kens-deployment.yaml
 $ kubectl taint nodes ip-172-30-14-227.us-east-2.compute.internal cloud:NoSchedule-
