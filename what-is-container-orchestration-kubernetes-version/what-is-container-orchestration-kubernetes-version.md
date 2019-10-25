@@ -4,7 +4,7 @@ In a previous post, [What is Container Orchestration?](https://capstonec.com/wha
 
 ## Visualizing Orchestration
 
-I used the [Docker Swarm Visualizer](https://github.com/dockersamples/docker-swarm-visualizer) in the videos of the last post to help you visualize what was happening. For visualizing Kubernetes, I tried Brendan Burns' [gcp-live-k8s-visualizer](https://github.com/brendandburns/gcp-live-k8s-visualizer) and [Weaveworks Scope](https://github.com/weaveworks/scope). I found the former doesn't tie in the nodes enough and the latter has too much for simple demos. However, Scope has a lot of capabilities I'd like to explore further so I used it in the videos below.
+I used the [Docker Swarm Visualizer](https://github.com/dockersamples/docker-swarm-visualizer) in the videos of the last post to help you visualize what was happening. For visualizing Kubernetes, I tried Brendan Burns' [gcp-live-k8s-visualizer](https://github.com/brendandburns/gcp-live-k8s-visualizer) and [Weaveworks Scope](https://github.com/weaveworks/scope). I found the former doesn't tie in the nodes enough and the latter has too much for simple demos. However, Scope has a lot of capabilities I'd like to explore further so I used it in the videos below. Installing Scope into our Kubernetes cluster is easy. See https://www.weave.works/docs/scope/latest/installing/#k8s.
 
 ## Taints and Tolerations
 

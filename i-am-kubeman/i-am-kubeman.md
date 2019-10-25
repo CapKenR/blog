@@ -1,6 +1,6 @@
 # I Am Kubeman
 
-I never thought I'd be going to Walmart for technology tools, advice, etc. However, thanks to Aymen EL Amri's great curated weekly email, Kaptain, on all things Kubernetes, see https://www.faun.dev/, I ran across a great tool from Walmart Labs called [Kubeman](https://github.com/walmartlabs/kubeman). If you are managing multiple Kubernetes clusters, and that's almost always the case if you're using Kubernetes, Kubeman is a tool you need to consider. In addition to making it easier to investigate issues across multiple Kubernetes clusters, it understands the Istio service mesh as well.
+I never thought I'd be going to Walmart for technology tools, advice, etc. However, thanks to Aymen EL Amri's great curated weekly email, Kaptain, on all things Kubernetes, see https://www.faun.dev/, I ran across a great tool from Walmart Labs called [Kubeman](https://github.com/walmartlabs/kubeman). If you are managing multiple Kubernetes clusters, and that's almost always the case if you're using Kubernetes, Kubeman is a tool you need to consider for troubleshooting. In addition to making it easier to investigate issues across multiple Kubernetes clusters, it understands the Istio service mesh as well.
 
 ## Install Kubeman
 
