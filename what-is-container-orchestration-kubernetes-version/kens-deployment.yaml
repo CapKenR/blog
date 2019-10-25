@@ -19,6 +19,11 @@ spec:
     spec:
       containers:
       - name: nginx
-        image: nginx:1.15
+        image: nginx:1.14
         ports:
         - containerPort: 80
+      tolerations:
+      - key: "cloud"
+        operator: "Equal"
+        value: "private"
+        effect: "NoSchedule"
