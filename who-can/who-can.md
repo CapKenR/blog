@@ -26,4 +26,9 @@ $ kubectl kubectl who-can VERB (TYPE | TYPE/NAME | NONRESOURCEURL) [flags]
 
 ## Take Who-Can for a Spin
 
-Now that we have who-can installed, let's try it out. I have a Kubernetes cluster I built in Azure using [Docker Enterprise](https://www.docker.com/products/docker-enterprise). I have 3 (non-default) namespaces for development, test and production. I also have teams for development, test, operations, security and pipeline as a cluster admin user. I've defined a set of RoleBindings and/or ClusterRoleBindings for each along the lines of those I used in my blog post on functional namespaces.
+Now that we have who-can installed, let's try it out. I have a Kubernetes cluster I built in Azure using [Docker Enterprise](https://www.docker.com/products/docker-enterprise). I have 3 (non-default) namespaces for development, test and production. I also have teams for development, test, operations, and security which I've created as a cluster admin user. I've defined a set of RoleBindings for each along the lines of those I used in my blog post on functional namespaces but taking advantage of the default ClusterRoles created with the Docker Enterprise installation.
+
+The typical set of verbs you may be interested in is `get`, `list`, `watch`, `create`, `update`, `patch`, and `delete`. There are a few others for specific resource types but, in general, you will be most interested in `get`, `create`, and `delete`.
+
+The typical set of resource types you may be interested includes `pods`, `deployments`, `services`, and more. In addition, with the ever expanding use of [`CustomResourceDefinitions`](https://kubernetes.io/docs/tasks/access-kubernetes-api/custom-resources/custom-resource-definitions/), the list of resources is never ending.
+
