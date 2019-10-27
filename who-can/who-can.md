@@ -160,6 +160,22 @@ ucp-kube-system:kube-dns:cluster-admin                kube-dns                  
 ucp-kube-system:ucp-metrics:cluster-admin             ucp-metrics                         ServiceAccount  kube-system
 ```
 
+```bash
+ROLEBINDING                NAMESPACE   SUBJECT   TYPE   SA-NAMESPACE
+ops-team:production-admin  production  ops-team  Group
+
+CLUSTERROLEBINDING                                    SUBJECT                             TYPE            SA-NAMESPACE
+cluster-admin                                         system:masters                      Group
+system:controller:clusterrole-aggregation-controller  clusterrole-aggregation-controller  ServiceAccount  kube-system
+system:controller:generic-garbage-collector           generic-garbage-collector           ServiceAccount  kube-system
+system:controller:namespace-controller                namespace-controller                ServiceAccount  kube-system
+system:controller:persistent-volume-binder            persistent-volume-binder            ServiceAccount  kube-system
+tiller                                                tiller                              ServiceAccount  kube-system
+ucp-kube-system:cni-plugin:cluster-admin              cni-plugin                          ServiceAccount  kube-system
+ucp-kube-system:kube-dns:cluster-admin                kube-dns                            ServiceAccount  kube-system
+ucp-kube-system:ucp-metrics:cluster-admin             ucp-metrics                         ServiceAccount  kube-system
+```
+
 ## Summary
 
 We've now seen how using Kubernetes as your container orchestrator makes it easier for an operations or DevOps team (or, in many cases today, a CI/CD pipeline) to manage applications in production. There are a lot more options and features available to you. If you want or need help, Capstone IT is a Docker Premier Consulting Partner as well as being an Azure Gold and AWS Select partner. If you are interested in finding out more and getting help with your Container, Cloud and DevOps transformation, please [Contact Us](https://capstonec.com/contact-us/).
