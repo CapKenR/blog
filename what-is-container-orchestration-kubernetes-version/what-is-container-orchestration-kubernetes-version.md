@@ -31,6 +31,7 @@ metadata:
   labels:
     visualize: "true"
     run: nginx
+  namespace: development
 spec:
   selector:
     matchLabels:
@@ -67,6 +68,7 @@ metadata:
   labels:
     visualize: "true"
     run: nginx
+  namespace: development
 spec:
   type: LoadBalancer
   selector:
@@ -135,7 +137,7 @@ We'll start by demonstrating an all to typical upgrade failure scenario. As with
 
 Now, we'll demonstrate the failure of a container by deleting a pod. You will see the scheduler notices almost immediately that the current state, i.e. 3 pods, doesn't match the desired state, i.e. 4 pods, so it starts another one.
 
-To simulate a server failure, I'm going to shutdown one of the worker nodes with the private cloud taint. Since my cluster is hosted in AWS, I'll use the AWS console to stop the instance. Again, the scheduler sees the current state doesn't match the desired state so it starts another pod on one of the available worker nodes.
+To simulate a server failure, I'm going to shutdown one of the worker nodes with the private cloud taint. Since my cluster is hosted in AWS, I'll use the AWS console to stop the instance. Again, the scheduler sees the current state doesn't match the desired state so it starts another pod on one of the available worker nodes. What you may not notice in this video is that it takes over 5 minutes before the new pods are created. (The video is playing 10x speed.) This is due to the default `pod-eviction-timeout` of 5m0s along with a few other related parameters. For a detailed discussion of this topic and what you can do to reduce it, say from 5m40s to 46s, see [Improving Kubernetes reliability: quicker detection of a Node down](https://fatalfailure.wordpress.com/2016/06/10/improving-kubernetes-reliability-quicker-detection-of-a-node-down/).
 
 Finally, to simulate a site or datacenter failure, I'll use the AWS console to stop the worker node with the private cloud taint. As before, another pod is started. More significantly, the last two scenarios can be viewed as disaster recovery. One site, our private cloud, is down and all the work has been migrated to our other site, our public cloud. This will work in any similar situation, i.e. two on-premises datacenters, an on-premises datacenter with a co-location facility, an on-premises datacenter with a public cloud (hybrid cloud), or two public clouds (multi-cloud).
 

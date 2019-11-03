@@ -5,11 +5,12 @@ metadata:
   labels:
     visualize: "true"
     run: nginx
+  namespace: development
 spec:
   selector:
     matchLabels:
       app: kens-app
-  replicas: 2
+  replicas: 8
   template:
     metadata:
       labels:
@@ -22,8 +23,18 @@ spec:
         image: nginx:1.14
         ports:
         - containerPort: 80
+        livenessProbe:
+          httpGet:
+            path: /
+            port: 80
+          initialDelaySeconds: 10
+          periodSeconds: 10
       tolerations:
       - key: "cloud"
         operator: "Equal"
         value: "private"
+        effect: "NoSchedule"
+      - key: "cloud"
+        operator: "Equal"
+        value: "public"
         effect: "NoSchedule"

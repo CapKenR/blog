@@ -5,6 +5,7 @@ metadata:
   labels:
     visualize: "true"
     run: nginx
+  namespace: development
 spec:
   type: LoadBalancer
   selector:
