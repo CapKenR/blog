@@ -10,7 +10,7 @@ I used the [Docker Swarm Visualizer](https://github.com/dockersamples/docker-swa
 
 With Swarm I used node labels to designate two of the worker nodes in my cluster as being in my private cloud and two in my public cloud. Then, when I created the Swarm service, I used constraints to only run the service (initially) in my private cloud. In Kubernetes, the (rough) equivalent to labels are taints and the (rough) equivalent to constraints are tolerations. There are a lot more uses for taints and tolerations. If you want to learn more about them, see [Taints and Tolerations](https://kubernetes.io/docs/concepts/configuration/taint-and-toleration/) in the Kubernetes documentation.
 
-In our case, we are going to taint two of our worker nodes with the key-value pair of `cloud=private` and the effect of `NoSchedule`. For the other two, we use the key-value pair of `cloud=public` and the same effect. In essence, this tells the scheduler to not schedule anything on that node unless it has toleration for the specified key-value pair.
+In our case, we are going to taint two of our worker nodes with the key-value pair of `cloud=private` and the effect of `NoSchedule`. For the other two, we use the key-value pair of `cloud=public` and the same effect. In essence, this tells the scheduler to not schedule anything on that node unless it has a toleration for the specified key-value pair.
 
 ```bash
 $ kubectl taint nodes ip-172-30-14-227.us-east-2.compute.internal cloud=private:NoSchedule
@@ -89,7 +89,7 @@ Notice the pods created are only running on the worker nodes with the `cloud=pri
 Next, we'll scale the replica set from 2 to 4 replicas. We'll do this by updating the number of replicas specified in kens-deployment.yaml and applying it.
 
 ```yaml
-  replicas: 2
+  replicas: 4
 ```
 
 ```bash
@@ -133,13 +133,13 @@ $ kubectl apply -f kens-deployment.yaml
 
 ## Demonstrate Failures
 
-We'll start by demonstrating an all to typical upgrade failure scenario. As with Swarm, Kubernetes has quite a few options for detecting upgrade failures and automatically rolling back to the previous version. In this case, we're going to assume the upgrade succeeded but we found a problem post-upgrade. There are still several options available to us. You could use the `kubectl rollout` feature for deployments. (See [Deployments](https://kubernetes.io/docs/concepts/workloads/controllers/deployment/) in the Kubernetes documentation.) However, we're a big believer in our current state matching our desired state along with matching what we have under source control. So, we'll update the deployment specification with an old image tag and apply it. (Or, maybe, we'll revert the change in our source and our CI/CD pipeline will apply it for us.) In any case, we'll see a rolling update to the pods.
+We'll start by demonstrating an all too typical upgrade failure scenario. As with Swarm, Kubernetes has quite a few options for detecting upgrade failures and automatically rolling back to the previous version. In this case, we're going to assume the upgrade succeeded but we found a problem post-upgrade. There are still several options available to us. You could use the `kubectl rollout` feature for deployments. (See [Deployments](https://kubernetes.io/docs/concepts/workloads/controllers/deployment/) in the Kubernetes documentation.) However, we're a big believer in our current state matching our desired state along with matching what we have under source control. So, we'll update the deployment specification with an old image tag and apply it. (Or, maybe, we'll revert the change in our source and our CI/CD pipeline will apply it for us.) In any case, we'll see a rolling update to the pods.
 
 Now, we'll demonstrate the failure of a container by deleting a pod. You will see the scheduler notices almost immediately that the current state, i.e. 3 pods, doesn't match the desired state, i.e. 4 pods, so it starts another one.
 
 To simulate a server failure, I'm going to shutdown one of the worker nodes with the private cloud taint. Since my cluster is hosted in AWS, I'll use the AWS console to stop the instance. Again, the scheduler sees the current state doesn't match the desired state so it starts another pod on one of the available worker nodes. What you may not notice in this video is that it takes over 5 minutes before the new pods are created. (The video is playing 10x speed.) This is due to the default `pod-eviction-timeout` of 5m0s along with a few other related parameters. For a detailed discussion of this topic and what you can do to reduce it, say from 5m40s to 46s, see [Improving Kubernetes reliability: quicker detection of a Node down](https://fatalfailure.wordpress.com/2016/06/10/improving-kubernetes-reliability-quicker-detection-of-a-node-down/).
 
-Finally, to simulate a site or datacenter failure, I'll use the AWS console to stop the worker node with the private cloud taint. As before, another pod is started. More significantly, the last two scenarios can be viewed as disaster recovery. One site, our private cloud, is down and all the work has been migrated to our other site, our public cloud. This will work in any similar situation, i.e. two on-premises datacenters, an on-premises datacenter with a co-location facility, an on-premises datacenter with a public cloud (hybrid cloud), or two public clouds (multi-cloud).
+Finally, to simulate a site or datacenter failure, I'll again use the AWS console to stop the other worker node with the private cloud taint. As before, another pod is started. More significantly, the last two scenarios can be viewed as disaster recovery. One site, our private cloud, is down and all the work has been migrated to our other site, our public cloud. This will work in any similar situation, i.e. two on-premises datacenters, an on-premises datacenter with a co-location facility, an on-premises datacenter with a public cloud (hybrid cloud), or two public clouds (multi-cloud).
 
 
 ## Resetting
