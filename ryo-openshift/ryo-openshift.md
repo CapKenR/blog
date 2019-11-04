@@ -1,9 +1,10 @@
+# Roll Your Own OpenShift Developer Services
 
-[Red Hat Expands the Kubernetes Developer Experience with Newest Version of Red Hat OpenShift 4](https://www.redhat.com/en/about/press-releases/red-hat-expands-kubernetes-developer-experience-newest-version-red-hat-openshift-4) press release talks about their new developer services. In reality Red Hat OpenShift Service Mesh = Istio, Red Hat OpenShit Serverless = Knative and Red Hat OpenShift Pipelines = Tekton.
+A recent Red Hat press release, [Red Hat Expands the Kubernetes Developer Experience with Newest Version of Red Hat OpenShift 4](https://www.redhat.com/en/about/press-releases/red-hat-expands-kubernetes-developer-experience-newest-version-red-hat-openshift-4), talks about the new developer services they've included in OpenShift 4.2. In reality, their Service Mesh service is [Istio](https://istio.io), Serverless is [Knative](https://knative.dev/), and Pipelines is [Tekton Pipelines](https://tekton.dev/). In the past, Red Hat has talked about running the machine learning toolkit [KubeFlow](https://www.kubeflow.org/) in OpenShift as well. Over the past year I've had the opportunity to run each of these in test Kubernetes clusters built using [Docker Enterprise](https://www.docker.com/products/docker-enterprise). In this post, I'll show you how to bring them all up in your own cluster.
 
 ## Istio
 
-```yaml
+```yaml values-docker-enterpise.yaml
 gateways:
   istio-ingressgateway:
     type: NodePort
