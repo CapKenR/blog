@@ -79,3 +79,10 @@ $ kubectl apply --filename https://storage.googleapis.com/tekton-releases/pipeli
 
 [Kubeflow Deployment with kfctl_k8s_istio](https://www.kubeflow.org/docs/started/k8s/kfctl-k8s-istio/)
 
+## Summary
+
+Products like OpenShift are very perscriptive on how you do your work but you don't have to be. You can use all the same tools in your own Kubernetes cluster without being constrained by how another company thinks you should use them. For example, you may want to use [Linkerd](https://linkerd.io/) instead of Istio for your service mesh or [OpenFaaS](https://www.openfaas.com/) instead of Knative for serverless. One of the big advantages with using Docker Enterprise is the choice and flexibility it provides to build the infrastructure you need. If you want or need help, Capstone IT is a Docker Premier Consulting Partner as well as being an Azure Gold and AWS Select partner. If you are interested in finding out more and getting help with your Container, Cloud and DevOps transformation, please [Contact Us](https://capstonec.com/contact-us/).
+
+Ken Rider
+Solutions Architect
+Capstone IT
