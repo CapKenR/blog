@@ -65,7 +65,7 @@ The Istio project has a sample application, [Bookinfo](https://istio.io/docs/exa
 
 ## Kubeman Recipes
 
-From the Kubeman documentation, "_Kubeman offers various recipes ranging from those that can give you a summary overview of a cluster, to those that can analyze and correlate configurations across multiple clusters._" These recipes are grouped into categories like Cluster, Events, Resources, Istio Ingress, etc. Within each category, there are 2 to 21 recipes. It's obvious from the recipes that Walmart is a big Istio user but there are quite a few good, generic Kubernetes recipes even if you aren't using Istio. Let's take a look at some of these recipes.
+From the Kubeman documentation, "_Kubeman offers various recipes ranging from those that can give you a summary overview of a cluster, to those that can analyze and correlate configurations across multiple clusters._" These recipes are grouped into categories like Cluster, Events, Resources, Istio Ingress, etc. Within each category, there are 2 to 21 recipes. It's obvious from the recipes that Walmart is a big Istio user but there are quite a few good, generic Kubernetes recipes even if you aren't using Istio. The Kubeman [user guide](https://github.com/walmartlabs/kubeman/blob/master/userGuide.md) takes you through all of the available recipes so let's take a look at some of my favorites and why you might use them.
 
 ### Clusters Overview
 
@@ -79,13 +79,13 @@ From the Kubeman documentation, "_Kubeman offers various recipes ranging from th
 
 ## What's Missing or Wrong?
 
-The biggest thing I see missing is you can't edit recipes and you can't create your own recipes. For example, I have Knative (serverless) and Tekton (CI/CD) deployed in another Kubernetes cluster. It would be nice to be able to add recipes specific to troubleshooting those applications workflows.
+The biggest thing I see missing is you can't edit recipes and you can't create your own recipes. For example, I have Knative (serverless) and Tekton (CI/CD) deployed in another Kubernetes cluster. It would be nice to be able to add recipes specific to troubleshooting those applications workflows. Since Walmart Labs has open sourced the project, I could modify the code to add my recipes to it. But, if you don't know TypeScript or you're not a developer that's not an option.
 
 Kubeman isn't to a 1.0 version yet so the things I've found wrong should be taken with a grain of salt. Having said that, I have found situations where it doesn't seem to like a context even though kubectl doesn't have a problem communicating as that user with that cluster. And, I've seen cases where some of the recipes don't work for me.
 
 ## Summary
 
-Troubleshooting Kubernetes and Istio is hard. Kubeman has a lot of promise for making it easier. Even though I ran into some challenges along the way and there is still work to be done, I would recommend checking it out. If you want or need help, Capstone IT is a Docker Premier Consulting Partner as well as being an Azure Gold and AWS Select partner. If you are interested in finding out more and getting help with your Container, Cloud and DevOps transformation, please [Contact Us](https://capstonec.com/contact-us/).
+Troubleshooting Kubernetes and Istio is hard. Kubeman has a lot of promise for making it easier. Even though I ran into some challenges along the way and there is still work to be done, I would recommend checking it out. If you want or need help with your Kubernetes journey, Capstone IT is a Docker Premier Consulting Partner as well as being an Azure Gold and AWS Select partner. If you are interested in finding out more and getting help with your Container, Cloud and DevOps transformation, please [Contact Us](https://capstonec.com/contact-us/).
 
 Ken Rider
 Solutions Architect
