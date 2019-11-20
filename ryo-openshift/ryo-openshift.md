@@ -28,21 +28,6 @@ gateways:
       targetPort: 443
       name: https
       nodePort: 35443
-    - port: 15029
-      targetPort: 15029
-      name: https-kiali
-    - port: 15030
-      targetPort: 15030
-      name: https-prometheus
-    - port: 15031
-      targetPort: 15031
-      name: https-grafana
-    - port: 15032
-      targetPort: 15032
-      name: https-tracing
-    - port: 15443
-      targetPort: 15443
-      name: tls
 ```
 
 We'll use the [Installing Istio](https://istio.io/docs/setup/#installing-istio) instructions. For our case, we're going to use the demo configuration option as it enables most of its functionality with minimal resource requirements. (For a comparison of the various options, see [Installation Configuration Profiles](https://istio.io/docs/setup/additional-setup/config-profiles/).)
@@ -55,6 +40,17 @@ $ helm template istio install/kubernetes/helm/istio --namespace istio-system --v
 
 ### Using Istio
 
+The easiest way to demonstrate some of Istio's capabilities is to deploy the [Bookinfo](https://istio.io/docs/examples/bookinfo/). We'll start by creating and labeling the `bookinfo` namespace to enable automatic sidecar injection when we apply the Bookinfo manifests.
+
+```bash
+$ kubectl create namespace bookinfo
+$ kubectl label namespace bookinfo istio-injection=enabled
+$ kubectl -n bookinfo apply -f samples/bookinfo/platform/kube/bookinfo.yaml
+$ kubectl -n bookinfo apply -f samples/bookinfo/networking/bookinfo-gateway.yaml
+```
+
+The gateway declaration specifies '*' as the DNS name for the application. Since we'll be sharing this cluster for many services, we'll edit the gateway to specify 'test-bookinfo.lab.capstonec.net' for the host and create a corresponding DNS CNAME entry that resolves to our cluster's load balancer. If I browse to http://test-bookinfo.lab.capstonec.net, I see the following.
+
 ## Knative for Serverless
 
 ### What is Knative?
@@ -63,23 +59,27 @@ Knative was developed by Google (and others) to provide a serverless framework o
 
 ### Installing Knative
 
-We will follow the [Install on a Kubernetes cluster](https://knative.dev/docs/install/knative-with-any-k8s/) instructions for installing Knative onto an existing Kubernetes cluster. (You may have to run the Knative CRD install more than once as there seems to be a race condition.)
+We will follow the [Install on a Kubernetes cluster](https://knative.dev/docs/install/knative-with-any-k8s/) instructions for installing Knative onto an existing Kubernetes cluster. (You may have to run the Knative CRD install more than once as there seems to be a race condition.) Also, we're not going to install the Knative monitoring manifest as we already have Prometheus and Grafana installed by our Istio install and we don't need the ELK stack as we typically install the Elastic Stack as part of our Kubernetes cluster install.
 
 ```bash
 $ kubectl apply --selector knative.dev/crd-install=true \
    --filename https://github.com/knative/serving/releases/download/v0.10.0/serving.yaml \
-   --filename https://github.com/knative/eventing/releases/download/v0.10.0/release.yaml \
-   --filename https://github.com/knative/serving/releases/download/v0.10.0/monitoring.yaml
+   --filename https://github.com/knative/eventing/releases/download/v0.10.0/release.yaml
 ```
 
 ```bash
 $ kubectl apply \
    --filename https://github.com/knative/serving/releases/download/v0.10.0/serving.yaml \
-   --filename https://github.com/knative/eventing/releases/download/v0.10.0/release.yaml \
-   --filename https://github.com/knative/serving/releases/download/v0.10.0/monitoring.yaml
+   --filename https://github.com/knative/eventing/releases/download/v0.10.0/release.yaml
 ```
 
+By default, Knative uses the Istio ingress gateway for its serving component. Again, the gateway resource it creates uses '*' for the host DNS name. Since we're sharing this cluster, we'll edit it to use 'test-knative.lab.capstonec.net' and create the corresponding DNS CNAME entry.
+
+[Setting up a custom domain](https://knative.dev/docs/serving/using-a-custom-domain/)
+
 ### Using Knative
+
+[Getting Started with App Deployment](https://knative.dev/docs/serving/getting-started-knative-app/)
 
 ## Tekton for CI/CD
 

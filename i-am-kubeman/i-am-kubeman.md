@@ -1,6 +1,6 @@
 # I Am Kubeman
 
-I never thought I'd be going to Walmart for technology tools, advice, etc. However, thanks to Aymen EL Amri's great curated weekly email, Kaptain, on all things Kubernetes, see https://www.faun.dev/, I ran across a great tool from Walmart Labs called [Kubeman](https://github.com/walmartlabs/kubeman). If you are managing multiple Kubernetes clusters, and that's almost always the case if you're using Kubernetes, Kubeman is a tool you need to consider for troubleshooting. In addition to making it easier to investigate issues across multiple Kubernetes clusters, it understands an Istio service mesh as well.
+I never thought I'd be going to Walmart for technology tools, advice, etc. However, thanks to Aymen EL Amri's great curated weekly email, Kaptain, on all things Kubernetes, see https://www.faun.dev/, I ran across a great tool from [Walmart Labs](https://code.walmartlabs.com/) called [Kubeman](https://github.com/walmartlabs/kubeman). If you are managing multiple Kubernetes clusters, and that's almost always the case if you're using Kubernetes, Kubeman is a tool you need to consider for troubleshooting. In addition to making it easier to investigate issues across multiple Kubernetes clusters, it understands an [Istio](https://istio.io/) service mesh as well.
 
 ## Install Kubeman
 
@@ -8,7 +8,7 @@ The easiest way to install Kubeman is with one of the pre-built binaries for Lin
 
 ## Kubernetes Configuration
 
-In order to use Kubeman, you must first connect to your Kubernetes cluster using kubectl in order to save the context to your local kube config. Kubeman uses your local kube config to determine which cluster(s) will be available to you. In my case, I have two Kubernetes clusters, one in AWS and the other in Azure. I used [Docker Enterprise](https://www.docker.com/products/docker-enterprise) to create both clusters. On each cluster I have two users; the default admin user with cluster administration privileges and another user, ken, with admin privileges on one namespace, kens-namespace.
+In order to use Kubeman, you must first connect to your Kubernetes cluster using kubectl in order to save the context to your local kube config. Kubeman uses your local kube config to determine which cluster(s) will be available to you. In my case, I have two Kubernetes clusters, one in AWS and the other in Azure. I used [Docker Enterprise](https://www.docker.com/products/docker-enterprise) to create both clusters. On each cluster I have two users; the default admin user with cluster administration privileges and another user, kenrider, with admin privileges on one namespace, default.
 
 Docker Enterprise includes a great feature called a client bundle which makes it easy to obtain and/or setup the environment variables, user and server certificates and configuration files. (For more details, see Brian Kaufman's blog post, [Get Familiar with Docker Enterprise Edition Client Bundles](https://www.docker.com/blog/get-familiar-docker-enterprise-edition-client-bundles/).) I've downloaded and executed the client bundle for each user on each cluster. If I look at my Kubernetes configuration, I see the following clusters, contexts, and users.
 
@@ -41,7 +41,7 @@ users:
   user:
     client-certificate-data: REDACTED
     client-key-data: REDACTED
-- name: ucp_test-aws-ucp.lab.capstonec.net:6443_ken
+- name: ucp_test-aws-ucp.lab.capstonec.net:6443_kenrider
   user:
     client-certificate-data: REDACTED
     client-key-data: REDACTED
@@ -49,7 +49,7 @@ users:
   user:
     client-certificate-data: REDACTED
     client-key-data: REDACTED
-- name: ucp_test-azure-ucp.lab.capstonec.net:6443_ken
+- name: ucp_test-azure-ucp.lab.capstonec.net:6443_kenrider
   user:
     client-certificate-data: REDACTED
     client-key-data: REDACTED
@@ -57,11 +57,11 @@ users:
 
 ## Istio Configuration
 
-Within each cluster I've installed the current version (1.3.4 at the time I'm writing this post) of the [Istio](https://istio.io/) service mesh. I've installed it using the demostration configuration which enables most of its features but with limited resource utilization.
+In the AWS-hosted cluster I've installed the current version (1.3.4 at the time I'm writing this post) of the Istio service mesh. And, in the Azure-hosted cluster I used the previous version, 1.3.3. In both cases I installed it using the demostration configuration which enables most of its features but with limited resource utilization.
 
 ## Sample Istio Application
 
-The Istio project has a sample application, [Bookinfo](https://istio.io/docs/examples/bookinfo/), that I've deployed as the `ken` user in the `kens-namespace`.
+The Istio project has a sample application, [Bookinfo](https://istio.io/docs/examples/bookinfo/), that I've deployed as the `kenrider` user in the `default` namespace on both clusters. In the Azure cluster, I also applied an Istio gateway and virtual service as well as destination rules for the three microservices and versions.
 
 ## Kubeman Recipes
 
@@ -75,7 +75,7 @@ From the Kubeman documentation, "_Kubeman offers various recipes ranging from th
 
 ### Compare Two Deployments
 
-### Analyze Service Details and Routing
+### Analyze Service mTLS Status
 
 ## What's Missing or Wrong?
 
