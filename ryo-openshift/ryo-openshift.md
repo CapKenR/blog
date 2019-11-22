@@ -47,9 +47,12 @@ $ kubectl create namespace bookinfo
 $ kubectl label namespace bookinfo istio-injection=enabled
 $ kubectl -n bookinfo apply -f samples/bookinfo/platform/kube/bookinfo.yaml
 $ kubectl -n bookinfo apply -f samples/bookinfo/networking/bookinfo-gateway.yaml
+$ kubectl -n bookinfo apply -f samples/bookinfo/networking/destination-rule-all-mtls.yaml
 ```
 
-The gateway declaration specifies '*' as the DNS name for the application. Since we'll be sharing this cluster for many services, we'll edit the gateway to specify 'test-bookinfo.lab.capstonec.net' for the host and create a corresponding DNS CNAME entry that resolves to our cluster's load balancer. If I browse to http://test-bookinfo.lab.capstonec.net, I see the following.
+The gateway and virtual service declarations specify '*' as the DNS name for the application. Since we'll be sharing this cluster for many services, we'll edit the gateway and virtual service to specify 'test-bookinfo.lab.capstonec.net' for the host and create a corresponding DNS CNAME entry that resolves to our cluster's load balancer. If I browse to http://test-bookinfo.lab.capstonec.net/productpage, I see the following.
+
+If you keep refreshing the page you will see several Istio features in action. First, there are three versions of the reviews application and we've defined destination rules for each. One doesn't use the ratings service; the other two do. Of those two, one displays black stars and the other red stars. (See the following diagram.) Next, we've enabled mutual TLS (mTLS) between all of the services. Finally, there are four different programming languages in use and Istio enabled the destination rules and mTLS without having to change any of the services.
 
 ## Knative for Serverless
 
@@ -85,7 +88,7 @@ By default, Knative uses the Istio ingress gateway for its serving component. Ag
 
 ### What is Tekton?
 
-Tekton provides a Kubernetes native framework for creating cloud-native CI/CD pipelines. It originated from Knative build functionality.
+Tekton provides a Kubernetes native framework for creating cloud-native CI/CD pipelines. It originated from Knative's build functionality.
 
 ### Installing Tekton
 
