@@ -114,6 +114,6 @@ I used [Kubeflow Deployment with kfctl_k8s_istio](https://www.kubeflow.org/docs/
 
 Products like OpenShift are very perscriptive on how you do your work but you don't have to be. You can use all the same tools in your own Kubernetes cluster without being constrained by how another company thinks you should use them. For example, you may want to use [Linkerd](https://linkerd.io/) instead of Istio for your service mesh, [OpenFaaS](https://www.openfaas.com/) instead of Knative for serverless, and/or [Jenkins X](https://jenkins-x.io/) instead of Tekton for CI/CD. Or, maybe you have your own alternative to Kubeflow. One of the big advantages with using Docker Enterprise is the choice and flexibility it provides to build the infrastructure you need. If you want or need help, Capstone IT is a Docker Premier Consulting Partner as well as being an Azure Gold and AWS Select partner. If you are interested in finding out more and getting help with your Container, Cloud and DevOps transformation, please [Contact Us](https://capstonec.com/contact-us/).
 
-Ken Rider
-Solutions Architect
+[Ken Rider](https://www.linkedin.com/in/kenrider)  
+Solutions Architect  
 Capstone IT
