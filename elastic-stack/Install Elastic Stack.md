@@ -2,6 +2,8 @@
 
 I have been working with a client recently on getting Tomcat access and error logs from Kubernetes pods into Elasticsearch and visible in Kibana. As I started to look at the problem and saw [Elastic Stack 7.5.0 released](https://www.elastic.co/blog/elastic-stack-7-5-0-released), it also seemed like a good idea to move them up to the latest release. And, now that Helm 3 has been released and no longer requires Tiller, using the [Elastic Stack Kubernetes Helm Charts](https://github.com/elastic/helm-charts#elastic-stack-kubernetes-helm-charts) to manage their installs made a lot of sense.
 
+To see how this all works, I'll install Helm, then Elastic Stack, and, lastly, our Tomcat application.
+
 ## Install Helm 3
 
 I recently did a blog post, [A First Look at Helm 3](https://capstonec.com/a-first-look-at-helm-3/), that talks about the latest release. To find out more, read that post (first). Installing helm is easy. Here's how I did it on Ubuntu.
@@ -28,11 +30,11 @@ $ kubectl create namespace elastic-system
 
 ## Install the Elastic Stack
 
-The Elastic Stack typically refers to use of Elasticsearch, Kibana, Filebeat, and Metricbeat in concert. We're not going to use Metricbeat in this example as we already have a Prometheus/Grafana implementation as part of the Istio implementation in our Kubernetes cluster.
+The Elastic Stack typically refers to use of Elasticsearch, Kibana, Filebeat, and Metricbeat in concert. We're not going to use Metricbeat in this example as we already have Prometheus and Grafana installed as part of the Istio implementation in our Kubernetes cluster.
 
 ### Install Elasticsearch
 
-Elasticsearch is the most popular enterprise search engine in the world. To install it, we'll use helm then monitor the pods created until they are running using the following commands.
+[Elasticsearch](https://www.elastic.co/products/elasticsearch) is the most popular enterprise search engine in the world. To install it, we'll use helm then monitor the pods created until they are running using the following commands.
 
 ```bash
 $ helm install -n elastic-system --verion 7.5.0 elasticsearch elastic/elasticsearch
@@ -41,7 +43,7 @@ $ kubectl -n elastic-system get pods -l app=elasticsearch-master -w
 
 ### Install Kibana
 
-Next, we'll install Kibana using helm. Kibana is a visualization tool for data in Elasticsearch. We're going to modify the default values for the chart (slightly) to have Kibana decode JSON in `message` fields to make it easier to read. Here's the content of my `kibana-values.yaml` file.
+Next, we'll install Kibana using helm. [Kibana](https://www.elastic.co/products/kibana) is a visualization tool for data in Elasticsearch. We're going to modify the default values for the chart (slightly) to have Kibana decode JSON in `message` fields to make it easier to read. Here's the content of my `kibana-values.yaml` file.
 
 ```yaml
 podAnnotations:
@@ -58,7 +60,7 @@ $ kubectl -n elastic-system get pods -l app=kibana -w
 
 ### Install Filebeat
 
-Filebeat is a shipper for log files. It's part of the Beats family of shippers from Elastic. Filebeat reads specified log files, processes them, and ships the data to Elasticsearch. As part of its setup, it can create indices in Elasticsearch and/or dashboards in Kibana.
+[Filebeat](https://www.elastic.co/products/beats/filebeat) is a shipper for log files. It's part of the [Beats](https://www.elastic.co/products/beats) family of shippers from Elastic. Filebeat reads specified log files, processes them, and ships the data to Elasticsearch. As part of its setup, it can create indices in Elasticsearch and/or dashboards in Kibana.
 
 In our case, we're going to enable the Apache module (since that's the format used for Tomcat log files) and we're going to have it create the default dashboards in Kibana. Note: the `kibana-kibana` host name is based on the Kibana service and is derived from the name we gave to the helm install above. The other item of note is we're going to add Kubernetes metadata to the data we send to Elasticsearch from the Docker container logs. Here's the `filebeat-values.yaml` file we'll use.
 
@@ -272,9 +274,17 @@ $ kubectl -n development apply -f filebeat-configmap.yaml
 $ kubectl -n development apply -f tomcat-with-filebeat.yaml
 ```
 
+I also created an Istio Gateway and VirtualService for this deployment so I could access it from outside the cluster at https://test-tomcat.lab.capstonec.net. Then I accessed a few of the pages then one that didn't exist so I could see what shows up in Kibana.
+
+## Kibana Visualizations
+
+Filebeat creates an Apache dashboard in Kibana that I can use to visualize the Tomcat access log (as well as anything from the Tomcat error logs). Here's what I see when I go to it.
+
+I can also use Kibana's Discover blade to filter by `input.type : "log"` to see the Tomcat access and error logs in text format. It looks like the following picture.
+
 ## Summary
 
-Products like OpenShift are very perscriptive on how you do your work but you don't have to be. You can use all the same tools in your own Kubernetes cluster without being constrained by how another company thinks you should use them. For example, you may want to use [Linkerd](https://linkerd.io/) instead of Istio for your service mesh, [OpenFaaS](https://www.openfaas.com/) instead of Knative for serverless, and/or [Jenkins X](https://jenkins-x.io/) instead of Tekton for CI/CD. Or, maybe you have your own alternative to Kubeflow. One of the big advantages with using Docker Enterprise is the choice and flexibility it provides to build the infrastructure you need. If you want or need help, Capstone IT is a Docker Premier Consulting Partner as well as being an Azure Gold and AWS Select partner. If you are interested in finding out more and getting help with your Container, Cloud and DevOps transformation, please [Contact Us](https://capstonec.com/contact-us/).
+Using the Elastic Stack makes it easy to ingest and analyze logs from your Kubernetes cluster. And, using Filebeat in a sidecar makes it easy to ingest and analyze log files stored in your containers. If you want or need help, Capstone IT is a Docker Premier Consulting Partner as well as being an Azure Gold and AWS Select partner. If you are interested in finding out more and getting help with your Container, Cloud and DevOps transformation, please [Contact Us](https://capstonec.com/contact-us/).
 
 [Ken Rider](https://www.linkedin.com/in/kenrider)  
 Solutions Architect  
