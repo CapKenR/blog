@@ -1,0 +1,5 @@
+---
+
+podAnnotations:
+co.elastic.logs/processors.decode_json_fields.fields: message
+co.elastic.logs/processors.decode_json_fields.target: kibana

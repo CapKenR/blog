@@ -1,0 +1,15 @@
+apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  name: kibana-virtualservice
+spec:
+  hosts:
+  - "test-kibana.lab.capstonec.net"
+  gateways:
+  - kibana-gateway
+  http:
+  - route:
+    - destination:
+        port:
+          number: 5601
+        host: kibana-kibana
