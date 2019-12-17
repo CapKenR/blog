@@ -6,7 +6,7 @@ A recent Red Hat press release, [Red Hat Expands the Kubernetes Developer Experi
 
 ### What is Istio?
 
-As a service mesh implementation, Istio helps to remove the complexity from connecting, securing, controlling, and observing services deployed in a Kubernetes infrastructure. While especially useful for those with large numbers of microservices, it can be useful for those lifting-and-shifting their existing monolithic application into a container environment.
+As a service mesh implementation, Istio helps to remove the complexity from connecting, securing, controlling, and observing services deployed in a Kubernetes infrastructure. While especially useful for those with large numbers of microservices, it is also useful for those lifting-and-shifting their existing monolithic application into a container environment.
 
 ### Installing Istio
 
@@ -76,7 +76,7 @@ $ kubectl apply \
    --filename https://github.com/knative/eventing/releases/download/v0.10.0/release.yaml
 ```
 
-By default, Knative uses the Istio ingress gateway for its serving component. Again, the gateway resource it creates uses '*' for the host DNS name. Since we're sharing this cluster, we'll edit it to use 'test-knative.lab.capstonec.net' and create the corresponding DNS CNAME entry.
+By default, Knative uses the Istio ingress gateway for its serving component. Again, the gateway and virtual service resources it creates use '*' for the host DNS name. Since we're sharing this cluster, we'll edit it to use 'test-knative.lab.capstonec.net' and create the corresponding DNS CNAME entry.
 
 [Setting up a custom domain](https://knative.dev/docs/serving/using-a-custom-domain/)
 
@@ -106,13 +106,13 @@ $ kubectl apply --filename https://storage.googleapis.com/tekton-releases/pipeli
 
 ### Installing Kubeflow
 
-I used [Kubeflow Deployment with kfctl_k8s_istio](https://www.kubeflow.org/docs/started/k8s/kfctl-k8s-istio/) to install Kubeflow but ran into a couple of problems. The first is documented; you have to comment out the istio-crds and istio-install applications from KfDef YAML file you use for the install since we've already installed Istio. The second isn't documented yet ([Issue #4469](https://github.com/kubeflow/kubeflow/issues/4469)); you also have to comment out the knative-serving-crds and knative-serving-install applications since we also have Knative installed already.
+I used [Kubeflow Deployment with kfctl_k8s_istio](https://www.kubeflow.org/docs/started/k8s/kfctl-k8s-istio/) to install Kubeflow but ran into a couple of problems. The first is documented; you have to comment out the istio-crds and istio-install applications from the KfDef YAML file you use for the install since we've already installed Istio. The second isn't documented yet ([Issue #4469](https://github.com/kubeflow/kubeflow/issues/4469)); you also have to comment out the knative-serving-crds and knative-serving-install applications since we also have Knative installed already.
 
 ### Using Kubeflow
 
 ## Summary
 
-Products like OpenShift are very perscriptive on how you do your work but you don't have to be. You can use all the same tools in your own Kubernetes cluster without being constrained by how another company thinks you should use them. For example, you may want to use [Linkerd](https://linkerd.io/) instead of Istio for your service mesh, [OpenFaaS](https://www.openfaas.com/) instead of Knative for serverless, and/or [Jenkins X](https://jenkins-x.io/) instead of Tekton for CI/CD. Or, maybe you have your own alternative to Kubeflow. One of the big advantages with using Docker Enterprise is the choice and flexibility it provides to build the infrastructure you need. If you want or need help, Capstone IT is a Docker Premier Consulting Partner as well as being an Azure Gold and AWS Select partner. If you are interested in finding out more and getting help with your Container, Cloud and DevOps transformation, please [Contact Us](https://capstonec.com/contact-us/).
+Products like OpenShift are very perscriptive on how you do your work but you don't have to be. You can use all the same or similar tools in your own Kubernetes cluster without being constrained by how another company thinks you should use them. For example, you may want to use [Linkerd](https://linkerd.io/) instead of Istio for your service mesh, [OpenFaaS](https://www.openfaas.com/) instead of Knative for serverless, and/or [Jenkins X](https://jenkins-x.io/) instead of Tekton for CI/CD. Or, maybe you have your own alternative to Kubeflow. One of the big advantages with using Docker Enterprise is the choice and flexibility it provides to build the infrastructure you need. If you want or need help, Capstone IT is a Docker Premier Consulting Partner as well as being an Azure Gold and AWS Select partner. If you are interested in finding out more and getting help with your Container, Cloud and DevOps transformation, please [Contact Us](https://capstonec.com/contact-us/).
 
 [Ken Rider](https://www.linkedin.com/in/kenrider)  
 Solutions Architect  
