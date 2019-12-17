@@ -1,0 +1,228 @@
+<h1>Getting Tomcat logs from Kubernetes pods</h1>
+<p>I have been working with a client recently on getting Tomcat access and error logs from Kubernetes pods into Elasticsearch and visible in Kibana. As I started to look at the problem and saw <a href="https://www.elastic.co/blog/elastic-stack-7-5-0-released">Elastic Stack 7.5.0 released</a>, it also seemed like a good idea to move them up to the latest release. And, now that Helm 3 has been released and no longer requires Tiller, using the <a href="https://github.com/elastic/helm-charts#elastic-stack-kubernetes-helm-charts">Elastic Stack Kubernetes Helm Charts</a> to manage their installs made a lot of sense.</p>
+<p>To see how this all works, I'll install Helm, then Elastic Stack, and, lastly, our Tomcat application.</p>
+<h2>Install Helm 3</h2>
+<p>I recently did a blog post, <a href="https://capstonec.com/a-first-look-at-helm-3/">A First Look at Helm 3</a>, that talks about the latest release. To find out more, read that post (first). Installing helm is easy. Here's how I did it on Ubuntu.</p>
+<pre><code class="language-bash">$ wget https://get.helm.sh/helm-v3.0.1-linux-amd64.tar.gz
+$ tar xzf helm-v3.0.1-linux-amd64.tar.gz
+$ sudo mv linux-amd64/helm /usr/local/bin/helm
+</code></pre>
+<h2>Use the Elastic Helm repository</h2>
+<p>Elastic has their own Helm repository for their Elasticsearch, Kibana, Filebeat, Metricbeat, and Logstash charts. To use their repository, you need to add it to helm as follows.</p>
+<pre><code class="language-bash">$ helm repo add elastic https://helm.elastic.co
+$ helm repo update
+</code></pre>
+<h2>Create a namespace for Elastic Stack</h2>
+<pre><code class="language-bash">$ kubectl create namespace elastic-system
+</code></pre>
+<h2>Install the Elastic Stack</h2>
+<p>The Elastic Stack typically refers to use of Elasticsearch, Kibana, Filebeat, and Metricbeat in concert. We're not going to use Metricbeat in this example as we already have Prometheus and Grafana installed as part of the Istio implementation in our Kubernetes cluster.</p>
+<h3>Install Elasticsearch</h3>
+<p><a href="https://www.elastic.co/products/elasticsearch">Elasticsearch</a> is the most popular enterprise search engine in the world. To install it, we'll use helm then monitor the pods created until they are running using the following commands.</p>
+<pre><code class="language-bash">$ helm install -n elastic-system --verion 7.5.0 elasticsearch elastic/elasticsearch
+$ kubectl -n elastic-system get pods -l app=elasticsearch-master -w
+</code></pre>
+<h3>Install Kibana</h3>
+<p>Next, we'll install Kibana using helm. <a href="https://www.elastic.co/products/kibana">Kibana</a> is a visualization tool for data in Elasticsearch. We're going to modify the default values for the chart (slightly) to have Kibana decode JSON in <code>message</code> fields to make it easier to read. Here's the content of my <code>kibana-values.yaml</code> file.</p>
+<pre><code class="language-yaml">podAnnotations:
+  co.elastic.logs/processors.decode_json_fields.fields: message
+  co.elastic.logs/processors.decode_json_fields.target: kibana
+</code></pre>
+<p>And, here's how we install Kibana using Elastic's chart and our values file. Again, we monitor the created pods until they're running.</p>
+<pre><code class="language-bash">$ helm install -n elastic-system --version 7.5.0 --values kibana-values.yaml kibana elastic/kibana
+$ kubectl -n elastic-system get pods -l app=kibana -w
+</code></pre>
+<h3>Install Filebeat</h3>
+<p><a href="https://www.elastic.co/products/beats/filebeat">Filebeat</a> is a shipper for log files. It's part of the <a href="https://www.elastic.co/products/beats">Beats</a> family of shippers from Elastic. Filebeat reads specified log files, processes them, and ships the data to Elasticsearch. As part of its setup, it can create indices in Elasticsearch and/or dashboards in Kibana.</p>
+<p>In our case, we're going to enable the Apache module (since that's the format used for Tomcat log files) and we're going to have it create the default dashboards in Kibana. Note: the <code>kibana-kibana</code> host name is based on the Kibana service and is derived from the name we gave to the helm install above. The other item of note is we're going to add Kubernetes metadata to the data we send to Elasticsearch from the Docker container logs. Here's the <code>filebeat-values.yaml</code> file we'll use.</p>
+<pre><code class="language-yaml">filebeatConfig:
+  filebeat.yml: |
+    filebeat:
+      config:
+        modules:
+          path: /usr/share/filebeat/modules.d/*.yml
+          reload:
+            enabled: true
+      modules:
+      - module: apache
+      inputs:
+      - type: docker
+        containers.ids:
+        - '*'
+        processors:
+        - add_kubernetes_metadata: ~
+    output:
+      elasticsearch:
+        host: '${NODE_NAME}'
+        hosts: '${ELASTICSEARCH_HOSTS:elasticsearch-master:9200}'
+    setup:
+      kibana:
+        host: '${KIBANA_HOST:kibana-kibana:5601}'
+        protocol: &quot;http&quot;
+      dashboards:
+        enabled: true
+</code></pre>
+<p>Again, we install the Filebeat daemon set using Elastic's chart and our values file. As before, we monitor the created pods until they're running. There should be one Filebeat pod running on each node of our Kubernetes cluster.</p>
+<pre><code class="language-bash">$ helm install -n elastic-system --version 7.5.0 --values filebeat-values.yaml filebeat elastic/filebeat
+$ kubectl -n elastic-system get pods -l app=filebeat-filebeat -w
+</code></pre>
+<h3>Elastic Stack Installed</h3>
+<pre><code class="language-bash">$ helm -n elastic-system ls
+NAME            NAMESPACE       REVISION        UPDATED                                 STATUS          CHART                   APP VERSION
+elasticsearch   elastic-system  1               2019-12-16 17:11:14.108395919 +0000 UTC deployed        elasticsearch-7.5.0     7.5.0
+filebeat        elastic-system  1               2019-12-16 17:22:35.961662641 +0000 UTC deployed        filebeat-7.5.0          7.5.0
+kibana          elastic-system  1               2019-12-16 17:20:48.314049147 +0000 UTC deployed        kibana-7.5.0            7.5.0
+</code></pre>
+<h2>Access to Kibana</h2>
+<p>To give users access to the Elastic Stack, we will install an Istio Gateway and VirtualService for Kibana. We'll use the following <code>kibana-gateway.yaml</code> and <code>kibana-virtualservice.yaml</code> files.</p>
+<pre><code class="language-yaml">apiVersion: networking.istio.io/v1alpha3
+kind: Gateway
+metadata:
+  name: kibana-gateway
+spec:
+  selector:
+    istio: ingressgateway # use Istio default gateway implementation
+  servers:
+    - hosts:
+        - &quot;test-kibana.lab.capstonec.net&quot;
+      port:
+        name: &quot;http&quot;
+        number: 80
+        protocol: &quot;HTTP&quot;
+    - hosts:
+        - &quot;test-kibana.lab.capstonec.net&quot;
+      port:
+        name: &quot;https&quot;
+        number: 443
+        protocol: &quot;HTTPS&quot;
+      tls:
+        mode: &quot;SIMPLE&quot;
+        serverCertificate: /etc/istio/ingressgateway-certs/tls.crt
+        privateKey: /etc/istio/ingressgateway-certs/tls.key
+</code></pre>
+<pre><code class="language-yaml">apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  name: kibana-virtualservice
+spec:
+  hosts:
+  - &quot;test-kibana.lab.capstonec.net&quot;
+  gateways:
+  - kibana-gateway
+  http:
+  - route:
+    - destination:
+        port:
+          number: 5601
+        host: kibana-kibana
+</code></pre>
+<p>Then we'll apply these files into the <code>elastic-system</code> namespace where we've already created the required Kubernetes secret for our TLS certificate.</p>
+<pre><code class="language-bash">$ kubectl -n elastic-system apply -f kibana-gateway.yaml
+$ kubectl -n elastic-system apply -f kibana-virtualservice.yaml
+</code></pre>
+<h2>Deploy Tomcat with a Filebeat Sidecar</h2>
+<p>The Filebeat daemon set we deployed above is already sending <code>sysout</code> and <code>syserr</code> from all containers running in pods in our Kubernetes cluster to Elasticsearch. However, by default a Tomcat container writes its access and error logs to the <code>/usr/local/tomcat/logs/</code> directory in each container. As a result, Filebeat doesn't pick them up.</p>
+<p>To get around this, we'll setup a Filebeat sidecar in each Tomcat pod so that Filebeat has access to the container filesystem rather than the host filesystem. We'll configure this sidecar to use the Apache module to process the Tomcat logs then output them to Elasticsearch. To do this, we will create a <code>ConfigMap</code> with a <code>filebeat.yml</code> configuration file for Filebeat.</p>
+<pre><code class="language-yaml">apiVersion: v1
+kind: ConfigMap
+metadata:
+ labels:
+   app: tomcat
+   component: filebeat
+ name: filebeat-sidecar-config
+data:
+  filebeat.yml: |
+    filebeat:
+      config:
+        modules:
+          path: /usr/share/filebeat/modules.d/*.yml
+          reload:
+            enabled: true
+      modules:
+      - module: apache
+        access:
+          enabled: true
+          var.paths:
+          - &quot;/usr/local/tomcat/logs/localhost_access_log.*.txt&quot;
+        error:
+          enabled: true
+          var.paths:
+          - &quot;/usr/local/tomcat/logs/application.log*&quot;
+          - &quot;/usr/local/tomcat/logs/catalina.*.log&quot;
+          - &quot;/usr/local/tomcat/logs/host-manager.*.log&quot;
+          - &quot;/usr/local/tomcat/logs/localhost.*.log&quot;
+          - &quot;/usr/local/tomcat/logs/manager.*.log&quot;
+    output:
+      elasticsearch:
+        host: '${NODE_NAME}'
+        hosts: '${ELASTICSEARCH_HOSTS:elasticsearch-master.elastic-system:9200}'
+</code></pre>
+<p>Then, in our Tomcat deployment we will create an empty volume that is mounted as <code>/usr/local/tomcat/logs</code> by both the <code>tomcat</code> and <code>filebeat-sidecar</code> containers in the pod. Finally, since the <code>tomcat</code> container runs as <code>root</code> and the <code>filebeat-sidecar</code> container runs as <code>filebeat</code> (user and group ID of 1000), we'll specify a <code>fsGroup</code> of 1000 for the pod/volume so the <code>filebeat</code> user can read the log files created by the <code>root</code> user.</p>
+<pre><code class="language-yaml">apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: tomcat
+  labels:
+    app: tomcat
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: tomcat
+  template:
+    metadata:
+      labels:
+        app: tomcat
+    spec:
+      containers:
+      - name: filebeat-sidecar
+        image: docker.elastic.co/beats/filebeat:7.5.0
+        env:
+        - name: POD_NAMESPACE
+          valueFrom:
+            fieldRef:
+              apiVersion: v1
+              fieldPath: metadata.namespace
+        - name: NODE_NAME
+          valueFrom:
+            fieldRef:
+              apiVersion: v1
+              fieldPath: spec.nodeName
+        volumeMounts:
+        - name: logs-volume
+          mountPath: /usr/local/tomcat/logs
+        - name: filebeat-config
+          mountPath: /usr/share/filebeat/filebeat.yml
+          subPath: filebeat.yml
+      - name: tomcat
+        image: tomcat
+        ports:
+        - containerPort: 8080
+        volumeMounts:
+        - name: logs-volume
+          mountPath: /usr/local/tomcat/logs
+      securityContext:
+        fsGroup: 1000
+      volumes:
+      - name: logs-volume
+        emptyDir: {}
+      - name: filebeat-config
+        configMap:
+          name: filebeat-sidecar-config
+          items:
+            - key: filebeat.yml
+              path: filebeat.yml
+</code></pre>
+<p>Now, we apply the configmap and deployment in our previously created development namespace.</p>
+<pre><code class="language-bash">$ kubectl -n development apply -f filebeat-configmap.yaml
+$ kubectl -n development apply -f tomcat-with-filebeat.yaml
+</code></pre>
+<p>I also created an Istio Gateway and VirtualService for this deployment so I could access it from outside the cluster at https://test-tomcat.lab.capstonec.net. Then I accessed a few of the pages then one that didn't exist so I could see what shows up in Kibana.</p>
+<h2>Kibana Visualizations</h2>
+<p>Filebeat creates an Apache dashboard in Kibana that I can use to visualize the Tomcat access log (as well as anything from the Tomcat error logs). Here's what I see when I go to it.</p>
+<p>I can also use Kibana's Discover blade to filter by <code>input.type : &quot;log&quot;</code> to see the Tomcat access and error logs in text format. It looks like the following picture.</p>
+<h2>Summary</h2>
+<p>Using the Elastic Stack makes it easy to ingest and analyze logs from your Kubernetes cluster. And, using Filebeat in a sidecar makes it easy to ingest and analyze log files stored in your containers. If you want or need help, Capstone IT is a Docker Premier Consulting Partner as well as being an Azure Gold and AWS Select partner. If you are interested in finding out more and getting help with your Container, Cloud and DevOps transformation, please <a href="https://capstonec.com/contact-us/">Contact Us</a>.</p>
+<p><a href="https://www.linkedin.com/in/kenrider">Ken Rider</a><br>
+Solutions Architect<br>
+Capstone IT</p>
