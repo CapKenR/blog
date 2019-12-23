@@ -1,0 +1,79 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: tomcat
+  labels:
+    app: tomcat
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: tomcat
+  template:
+    metadata:
+      labels:
+        app: tomcat
+    spec:
+      containers:
+      - name: filebeat-elasticsearch
+        image: docker.elastic.co/beats/filebeat:7.5.1
+        env:
+        - name: POD_NAMESPACE
+          valueFrom:
+            fieldRef:
+              apiVersion: v1
+              fieldPath: metadata.namespace
+        - name: NODE_NAME
+          valueFrom:
+            fieldRef:
+              apiVersion: v1
+              fieldPath: spec.nodeName
+        volumeMounts:
+        - name: logs-volume
+          mountPath: /usr/local/tomcat/logs
+        - name: filebeat-elasticsearch-config
+          mountPath: /usr/share/filebeat/filebeat.yml
+          subPath: filebeat.yml
+      - name: filebeat-logstash
+        image: docker.elastic.co/beats/filebeat:7.5.1
+        env:
+        - name: POD_NAMESPACE
+          valueFrom:
+            fieldRef:
+              apiVersion: v1
+              fieldPath: metadata.namespace
+        - name: NODE_NAME
+          valueFrom:
+            fieldRef:
+              apiVersion: v1
+              fieldPath: spec.nodeName
+        volumeMounts:
+        - name: logs-volume
+          mountPath: /usr/local/tomcat/logs
+        - name: filebeat-logstash-config
+          mountPath: /usr/share/filebeat/filebeat.yml
+          subPath: filebeat.yml
+      - name: tomcat
+        image: tomcat
+        ports:
+        - containerPort: 8080
+        volumeMounts:
+        - name: logs-volume
+          mountPath: /usr/local/tomcat/logs
+      securityContext:
+        fsGroup: 1000
+      volumes:
+      - name: logs-volume
+        emptyDir: {}
+      - name: filebeat-elasticsearch-config
+        configMap:
+          name: filebeat-elasticsearch-config
+          items:
+            - key: filebeat.yml
+              path: filebeat.yml
+      - name: filebeat-logstash-config
+        configMap:
+          name: filebeat-logstash-config
+          items:
+            - key: filebeat.yml
+              path: filebeat.yml

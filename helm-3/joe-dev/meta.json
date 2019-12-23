@@ -1,0 +1,1 @@
+{"Name":"ucp-bundle-joe-dev","Metadata":{"Description":"Docker EE cluster test-ucp.lab.capstonec.net:443 as user joe-dev","StackOrchestrator":"all"},"Endpoints":{"docker":{"Host":"tcp://test-ucp.lab.capstonec.net:443","SkipTLSVerify":false},"kubernetes":{"Host":"https://test-ucp.lab.capstonec.net:6443","SkipTLSVerify":false}}}

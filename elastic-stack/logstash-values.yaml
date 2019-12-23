@@ -1,0 +1,35 @@
+image: "capkenr/logstash-with-syslog"
+imageTag: "7.5.1"
+
+service:
+  type: ClusterIP
+  ports:
+    - name: beats
+      port: 5044
+      protocol: TCP
+      targetPort: 5044
+
+logstashConfig:
+  logstash.yml: |
+    http.host: "0.0.0.0"
+
+logstashPipeline:
+  logstash.conf: |
+    input {
+      beats {
+        port => 5044
+      }
+    }
+
+    output {
+      syslog {
+        host => "syslog-ng"
+        port => 514
+        protocol => "tcp"
+        rfc => "rfc3164"
+      }
+      stdout {
+        codec => rubydebug
+      }
+    }
+
