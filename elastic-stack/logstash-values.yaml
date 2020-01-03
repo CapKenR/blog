@@ -28,8 +28,5 @@ logstashPipeline:
         protocol => "tcp"
         rfc => "rfc3164"
       }
-      stdout {
-        codec => rubydebug
-      }
     }
 
