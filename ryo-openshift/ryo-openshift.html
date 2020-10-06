@@ -1,0 +1,77 @@
+<h1>Roll Your Own Developer Experience</h1>
+<p>Late last year a Red Hat press release, <a href="https://www.redhat.com/en/about/press-releases/red-hat-expands-kubernetes-developer-experience-newest-version-red-hat-openshift-4">Red Hat Expands the Kubernetes Developer Experience with Newest Version of Red Hat OpenShift 4</a>, talked about the new developer services they included in OpenShift 4.2. However, these services are not confined to OpenShift. In reality, their Service Mesh service is <a href="https://istio.io">Istio</a>, their Serverless service is <a href="https://knative.dev/">Knative</a>, and their Pipelines service is <a href="https://tekton.dev/">Tekton Pipelines</a>. In the past, Red Hat has talked about running a machine learning toolkit, <a href="https://www.kubeflow.org/">KubeFlow</a>, in OpenShift as well. Over the past year I've had the opportunity to run each of these services in Kubernetes clusters built using Mirantis' <a href="https://www.mirantis.com/software/docker/docker-enterprise/">Docker Enterprise</a> or VMware's <a href="https://tanzu.vmware.com/kubernetes-grid">Tanzu Kubernetes Grid</a>. In this post, I'll show you how to roll your own developer experience by bringing them all up in your own cluster.</p>
+<p>Full disclosure... I had this post almost ready to go many months ago. All I had to do was some minor editing but then life and work got in the way. And, over that time Istio went through a major architectural change, Kubeflow released their 1.0 version, and everything else went through one or two patches and/or upgrades. Keeping up with the rate of change is one of the big challenges with doing it yourself. As a result, I went back and re-did everything using the latest version of each application.</p>
+<h2>Istio for Service Mesh</h2>
+<h3>What is Istio?</h3>
+<p>As a service mesh implementation, Istio helps to remove the complexity from connecting, securing, controlling, and observing services deployed in a Kubernetes infrastructure. While especially useful for those with large numbers of microservices, it is also useful for those lifting-and-shifting their existing monolithic application into a container environment.</p>
+<h3>Installing Istio</h3>
+<p>By default, Istio uses a <code>LoadBalancer</code> type for its ingress gateway. That works fine if you're in AWS, Azure or GCP but doesn't work for an on-premises cluster and/or clusters in multiple public clouds or you just don't want to be tied to a cloud provider implementation. We also want to control the HTTP and HTTPS ports used by our own load balancer. To accomplish this, we'll create an additional values file for our install that specifies <code>NodePort</code> for the type of gateway and the ports we want to use for HTTP and HTTPS. (In this case we're using 35080 and 35443, respectively.)</p>
+<pre><code class="language-yaml">gateways:
+  istio-ingressgateway:
+    type: NodePort
+    ports:
+    - port: 80
+      targetPort: 80
+      name: http2
+      nodePort: 35080
+    - port: 443
+      targetPort: 443
+      name: https
+      nodePort: 35443
+</code></pre>
+<p>We'll use the <a href="https://istio.io/docs/setup/#installing-istio">Installing Istio</a> instructions. For our case, we're going to use the demo configuration option as it enables most of its functionality with minimal resource requirements. (For a comparison of the various options, see <a href="https://istio.io/docs/setup/additional-setup/config-profiles/">Installation Configuration Profiles</a>.) Note: previously we would have used Helm to install Istio but, with the 1.5 release, Helm is being depracated in favor of istioctl.</p>
+<pre><code class="language-bash">$ istioctl manifest apply --set profile=demo
+
+$ kubectl create namespace istio-system
+$ helm template istio-init install/kubernetes/helm/istio-init --namespace istio-system | kubectl apply -f -
+$ helm template istio install/kubernetes/helm/istio --namespace istio-system --values install/kubernetes/helm/istio/values-istio-demo.yaml --values ./values-docker-enterprise.yaml | kubectl apply -f -
+</code></pre>
+<h3>Using Istio</h3>
+<p>The easiest way to demonstrate some of Istio's capabilities is to deploy the <a href="https://istio.io/docs/examples/bookinfo/">Bookinfo</a> sample application. We'll start by creating and labeling the <code>bookinfo</code> namespace to enable automatic sidecar injection when we apply the Bookinfo manifests.</p>
+<pre><code class="language-bash">$ kubectl create namespace bookinfo
+$ kubectl label namespace bookinfo istio-injection=enabled
+$ kubectl -n bookinfo apply -f samples/bookinfo/platform/kube/bookinfo.yaml
+$ kubectl -n bookinfo apply -f samples/bookinfo/networking/bookinfo-gateway.yaml
+$ kubectl -n bookinfo apply -f samples/bookinfo/networking/destination-rule-all-mtls.yaml
+</code></pre>
+<p>The gateway and virtual service declarations specify '*' as the DNS name for the application. Since we'll be sharing this cluster for many services, we'll edit the gateway and virtual service to specify 'test-bookinfo.lab.capstonec.net' for the host and create a corresponding DNS CNAME entry that resolves to our cluster's load balancer. If I browse to http://test-bookinfo.lab.capstonec.net/productpage, I see the following.</p>
+<p>If you keep refreshing the page you will see several Istio features in action. First, there are three versions of the reviews application and we've defined destination rules for each. One doesn't use the ratings service; the other two do. Of those two, one displays black stars and the other red stars. (See the following diagram.) Next, we've enabled mutual TLS (mTLS) between all of the services. Finally, there are four different programming languages in use and Istio enabled the destination rules and mTLS without having to change any of the services.</p>
+<h2>Knative for Serverless</h2>
+<h3>What is Knative?</h3>
+<p>Knative was developed by Google (and others) to provide a serverless framework on top of Kubernetes. It allows developers to deploy their source code (functions) without worrying about the complexities of running containers. Knative then serves these functions up as running containers which are triggered by events on queues.</p>
+<h3>Installing Knative</h3>
+<p>We will follow the <a href="https://knative.dev/docs/install/knative-with-any-k8s/">Install on a Kubernetes cluster</a> instructions for installing Knative onto an existing Kubernetes cluster. (You may have to run the Knative CRD install more than once as there seems to be a race condition.) Also, we're not going to install the Knative monitoring manifest as we already have Prometheus and Grafana installed by our Istio install and we don't need the ELK stack as we typically install the Elastic Stack as part of our Kubernetes cluster install.</p>
+<h3>Setup Knative Serving</h3>
+<pre><code class="language-bash">$ kubectl apply --filename https://github.com/knative/serving/releases/download/v0.16.0/serving-crds.yaml
+$ kubectl apply --filename https://github.com/knative/serving/releases/download/v0.16.0/serving-core.yaml
+</code></pre>
+<h3>Setup Knative Eventing</h3>
+<pre><code class="language-bash">$ kubectl apply --filename https://github.com/knative/eventing/releases/download/v0.16.0/eventing-crds.yaml
+$ kubectl apply --filename https://github.com/knative/eventing/releases/download/v0.16.0/eventing-core.yaml
+$ kubectl apply --filename https://github.com/knative/eventing/releases/download/v0.16.0/in-memory-channel.yaml
+$ kubectl apply --filename https://github.com/knative/eventing/releases/download/v0.16.0/mt-channel-broker.yaml
+</code></pre>
+<p>By default, Knative uses the Istio ingress gateway for its serving component. Again, the gateway and virtual service resources it creates use '*' for the host DNS name. Since we're sharing this cluster, we'll edit it to use 'test-knative.lab.capstonec.net' and create the corresponding DNS CNAME entry.</p>
+<p><a href="https://knative.dev/docs/serving/using-a-custom-domain/">Setting up a custom domain</a></p>
+<h3>Using Knative</h3>
+<p><a href="https://knative.dev/docs/serving/getting-started-knative-app/">Getting Started with App Deployment</a></p>
+<pre><code class="language-bash">$ kn service create helloworld-go --image gcr.io/knative-samples/helloworld-go --env TARGET=&quot;Go Sample v1&quot;
+</code></pre>
+<h2>Tekton for CI/CD</h2>
+<h3>What is Tekton?</h3>
+<p>Tekton provides a Kubernetes native framework for creating cloud-native CI/CD pipelines. It originated from Knative's build functionality.</p>
+<h3>Installing Tekton</h3>
+<p><a href="https://github.com/tektoncd/pipeline/blob/master/docs/install.md">Installing Tekton Pipelines</a> is the easiest of the four.</p>
+<pre><code class="language-bash">$ kubectl apply --filename https://storage.googleapis.com/tekton-releases/pipeline/latest/release.yaml
+</code></pre>
+<h3>Using Tekton</h3>
+<h2>Kubeflow for Machine Learning</h2>
+<h3>What is Kubeflow?</h3>
+<h3>Installing Kubeflow</h3>
+<p>I used <a href="https://www.kubeflow.org/docs/started/k8s/kfctl-k8s-istio/">Kubeflow Deployment with kfctl_k8s_istio</a> to install Kubeflow but ran into a couple of problems. The first is documented; you have to comment out the istio-crds and istio-install applications from the KfDef YAML file you use for the install since we've already installed Istio. The second isn't documented yet (<a href="https://github.com/kubeflow/kubeflow/issues/4469">Issue #4469</a>); you also have to comment out the knative-serving-crds and knative-serving-install applications since we also have Knative installed already.</p>
+<h3>Using Kubeflow</h3>
+<h2>Summary</h2>
+<p>Products like OpenShift are very perscriptive on how you do your work but you don't have to be. You can use all the same or similar tools in your own Kubernetes cluster without being constrained by how another company thinks you should use them. For example, you may want to use <a href="https://linkerd.io/">Linkerd</a> instead of Istio for your service mesh, <a href="https://www.openfaas.com/">OpenFaaS</a> instead of Knative for serverless, and/or <a href="https://about.gitlab.com/">GitLab</a> instead of Tekton for CI/CD. Or, maybe you have your own alternative to Kubeflow. One of the big advantages with using Kubernetes is the choice and flexibility it provides to build the infrastructure you need. If you want or need help, Capstone IT is a VMware Modern Applications Professional partner and a Docker Premier Consulting Partner as well as being an Azure Gold and AWS Select partner. If you are interested in finding out more and getting help with your Container, Cloud and DevOps transformation, please <a href="https://capstonec.com/contact/">Contact Us</a>.</p>
+<p><a href="https://www.linkedin.com/in/kenrider">Ken Rider</a><br>
+Solutions Architect<br>
+Capstone IT</p>
