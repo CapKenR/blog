@@ -69,6 +69,9 @@ Knative was developed by Google (and others) to provide a serverless framework o
 We will follow the [Install on a Kubernetes cluster](https://knative.dev/docs/install/knative-with-any-k8s/) instructions for installing Knative onto an existing Kubernetes cluster. (You may have to run the Knative CRD install more than once as there seems to be a race condition.) Also, we're not going to install the Knative monitoring manifest as we already have Prometheus and Grafana installed by our Istio install and we don't need the ELK stack as we typically install the Elastic Stack as part of our Kubernetes cluster install.
 
 ### Setup Knative Serving
+
+Install the Knative serving Custom Resource Definitions (CRDs).
+
 ```bash
 $ kubectl apply --filename https://github.com/knative/serving/releases/download/v0.18.0/serving-crds.yaml
 customresourcedefinition.apiextensions.k8s.io/certificates.networking.internal.knative.dev created
@@ -81,6 +84,11 @@ customresourcedefinition.apiextensions.k8s.io/routes.serving.knative.dev created
 customresourcedefinition.apiextensions.k8s.io/serverlessservices.networking.internal.knative.dev created
 customresourcedefinition.apiextensions.k8s.io/services.serving.knative.dev created
 customresourcedefinition.apiextensions.k8s.io/images.caching.internal.knative.dev created
+```
+
+Install the Knative serving core resources.
+
+```bash
 $ kubectl apply --filename https://github.com/knative/serving/releases/download/v0.18.0/serving-core.yaml
 namespace/knative-serving created
 clusterrole.rbac.authorization.k8s.io/knative-serving-addressable-resolver created
@@ -129,9 +137,17 @@ mutatingwebhookconfiguration.admissionregistration.k8s.io/webhook.serving.knativ
 validatingwebhookconfiguration.admissionregistration.k8s.io/validation.webhook.serving.knative.dev created
 secret/webhook-certs created
 ```
+
+Configure the `knative-serving` namespace to automatically inject the Istio sidecar into pods in that namespace.
+
 ```bash
 $ kubectl label namespace knative-serving istio-injection=enabled
 namespace/knative-serving labeled
+```
+
+Set the Istio MTLS mode to `PERMISSIVE` for the `knative-serving` namespace.
+
+```bash
 $ cat <<EOF | kubectl apply -f -
 > apiVersion: "security.istio.io/v1beta1"
 > kind: "PeerAuthentication"
@@ -144,6 +160,9 @@ $ cat <<EOF | kubectl apply -f -
 > EOF
 peerauthentication.security.istio.io/default created
 ```
+
+Install the Knative resources for using Istio's networking resources.
+
 ```bash
 $ kubectl apply --filename https://github.com/knative/net-istio/releases/download/v0.18.0/release.yaml
 clusterrole.rbac.authorization.k8s.io/knative-serving-istio created
@@ -163,6 +182,9 @@ service/istio-webhook created
 ```
 
 ### Setup Knative Eventing
+
+Install the Knative eventing CRDs.
+
 ```bash
 $ kubectl apply --filename https://github.com/knative/eventing/releases/download/v0.18.0/eventing-crds.yaml
 customresourcedefinition.apiextensions.k8s.io/apiserversources.sources.knative.dev created
@@ -176,6 +198,11 @@ customresourcedefinition.apiextensions.k8s.io/sequences.flows.knative.dev create
 customresourcedefinition.apiextensions.k8s.io/sinkbindings.sources.knative.dev created
 customresourcedefinition.apiextensions.k8s.io/subscriptions.messaging.knative.dev created
 customresourcedefinition.apiextensions.k8s.io/triggers.eventing.knative.dev created
+```
+
+Install the Knative eventing core resources.
+
+```bash
 $ kubectl apply --filename https://github.com/knative/eventing/releases/download/v0.18.0/eventing-core.yaml
 namespace/knative-eventing created
 serviceaccount/eventing-controller created
