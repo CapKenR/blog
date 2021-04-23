@@ -1,4 +1,4 @@
-# DNS and CA Integrations for Kubernetes
+# DNS and Certificates made simple for Kubernetes
 
 One of the challenges with demonstrating what you have done in Kubernetes is directing others to your application in a secure manner. This typically involves you having to create a DNS entry and requesting a certificate. Two projects, [ExternalDNS](https://github.com/kubernetes-sigs/external-dns) and [cert-manager](https://cert-manager.io/), respectively, are making it much easier to automate this process and hide the complexities from developers. Both projects are under active development (with commits in the last few hours or days) and a lot of interest (thousands of stars on GitHub).
 
@@ -55,6 +55,7 @@ NOTES:
 2. Configure DNS records corresponding to Kubernetes ingress resources to point to the load balancer IP/hostname found in step 1
 ```
 
+We can ignore the notes above as we will use ExternalDNS to automate this process for us.
 
 ## Install an application
 
@@ -80,6 +81,7 @@ spec:
         ports:
         - containerPort: 80
 ```
+
 ```yaml nginx-service.yaml
 apiVersion: v1
 kind: Service
@@ -102,13 +104,13 @@ $ kubectl apply -f nginx-service.yaml
 service/nginx-svc created
 ```
 
-We now have our demo application running in our new Kubernetes cluster but there is no way for an end user to access it.
+We now have our demo application running in our new Kubernetes cluster but there is no way for an end user to easily and securely access it.
 
 ## Install ExternalDNS
 
 The [ExternalDNS](https://github.com/kubernetes-sigs/external-dns) project configures DNS servers with addresses for services exposed by a Kubernetes cluster. ExternalDNS supports a large variety of DNS servers from cloud providers like AWS, Azure, and Google to more domain centric providers like Infoblox, GoDaddy, and DNSimple. Check the GitHub repository for a complete list. In our case, we use Azure DNS to manage our lab.capstonec.net subdomain.
 
-In order to use ExternalDNS, we need to create a JSON file with the details of an Azure service principal with contributor permissions for the resource group (capstonec.net in this case) which contains the (lab.capstonec.net) DNS Zone resource.
+In order to use ExternalDNS, we need to create a JSON file with the details of an Azure service principal with contributor permissions for the resource group (capstonec.net in this case) which contains our DNS Zone resource (lab.capstonec.net).
 
 ```json azure.json
 {
@@ -120,16 +122,14 @@ In order to use ExternalDNS, we need to create a JSON file with the details of a
 }
 ```
 
-And, create a Kubernetes secret, `azure-config-file`, from this JSON file in the external-dns namespace.
+And, create a Kubernetes secret, `azure-config-file`, from this JSON file.
 
 ```bash
-$ kubectl create namespace external-dns
-namespace/external-dns created
-$ kubectl -n external-dns create secret generic azure-config-file --from-file=azure.json
+$ kubectl create secret generic azure-config-file --from-file=azure.json
 secret/azure-config-file created
 ```
 
-Next, we create a deployment manifest for external-dns which includes the details of DNS domain being managed and the service principal secret we created above. The manifest also includes the `ClusterRole` and `ClusterRoleBinding` which allows ExternalDNS to list changes to ingresses, services, etc.
+Next, we create a deployment manifest for external-dns which includes the details of the DNS domain being managed and the service principal secret we created above. The manifest also includes the `ClusterRole` and `ClusterRoleBinding` which allows ExternalDNS to list changes to ingresses, services, etc.
 
 ```yaml external-dns.yaml
 apiVersion: v1
@@ -202,7 +202,7 @@ spec:
 Deploy external-dns.
 
 ```bash
-$ kubectl -n external-dns apply -f external-dns.yaml 
+$ kubectl apply -f external-dns.yaml 
 serviceaccount/external-dns created
 Warning: rbac.authorization.k8s.io/v1beta1 ClusterRole is deprecated in v1.17+, unavailable in v1.22+; use rbac.authorization.k8s.io/v1 ClusterRole
 clusterrole.rbac.authorization.k8s.io/external-dns created
@@ -211,10 +211,12 @@ clusterrolebinding.rbac.authorization.k8s.io/external-dns-viewer created
 deployment.apps/external-dns created
 ```
 
-At this point, ExternalDNS is now listening for ingresses and services of type `LoadBalancer` and will create DNS CNAME entries which correspond to them.
+At this point, ExternalDNS is now listening for ingresses and services of type `LoadBalancer` and will create DNS CNAME entries which correspond to them and point them to the AWS load balancer associated with our Contour ingress controller.
 
 ## Install cert-manager
-The [cert-manager](https://cert-manager.io/) project makes the process of requesting and renewing certificates easy for resources within a Kubernetes cluster.
+The [cert-manager](https://cert-manager.io/) project makes the process of requesting and renewing certificates easy for resources within a Kubernetes cluster. As with the ExternalDNS project, cert-manager supports a wide variety of certificate authorities. We are going to use Let's Encrypt (or ACME) issuer. The ACME issuer supports two types of challenges [HTTP01](https://cert-manager.io/docs/configuration/acme/http01/) and [DNS01](https://cert-manager.io/docs/configuration/acme/dns01/). We will use DNS01 with our same Azure DNS server.
+
+We will use Helm to install cert-manager into the cert-manager namespace. The process is simple as you can see below.
 
 ```bash
 $ helm repo add jetstack https://charts.jetstack.io
@@ -258,6 +260,8 @@ documentation:
 https://cert-manager.io/docs/usage/ingress/
 ```
 
+To use cert-manager, we need to create an `Issuer` or `ClusterIssuer` resource. The former is namespace constrained so, for ease of use, we create a ClusterIssuer for Let's Encrypt using Azure DNS as the DNS01 solver. The information you need for DNS01 is the same information you needed for external-dns.
+
 ```yaml azuredns-cluster-issuer.yaml
 apiVersion: cert-manager.io/v1
 kind: ClusterIssuer
@@ -283,15 +287,23 @@ spec:
           environment: AzurePublicCloud
 ```
 
+In addition, we need to create a Kubernetes secret for the Azure service principal.
+
 ```bash
 $ AZURE_CERT_MANAGER_SP_PASSWORD="0VZBkxeCSOtDHGgEMftg"
 $ kubectl -n cert-manager create secret generic azuredns-config --from-literal=client-secret=$AZURE_CERT_MANAGER_SP_PASSWORD
 secret/azuredns-config created
+```
+
+Finally, we create the ClusterIssuer resource.
+
+```bash
 $ kubectl -n cert-manager apply -f azuredns-clusterissuer.yaml
 clusterissuer.cert-manager.io/azuredns-cluster-issuer created
 ```
 
-## Create Ingress
+## Create an ingress for our application
+
 In order for an end user to access the `nginx-svc` service running in our cluster, we need to tell the ingress controller what HTTP traffic to route to it and how to terminate HTTPS traffic and route it as HTTP. We do this by specifying an `Ingress` resource.
 
 ```yaml nginx-ingress.yaml
@@ -316,25 +328,25 @@ spec:
     secretName: nginx-ingress-certificate
 ```
 
-The ingress specifies that any HTTP or HTTPS traffic with a host header matching `nginx.lab.capstonec.net` be routed to the `nginx-svc` service. However, we don't have a DNS entry for `nginx.lab.capstonec.net` at this point nor do we have a certificate for it for HTTPS termination.
-
-This is where ExternalDNS and cert-manager come in. They are watching all `Ingress` resources. If there is a `host` key in the `rules` `spec` that matches the DNS domain we specified in the ExternalDNS configuration, it attempts to create a DNS CNAME record for it with a value that matches the IP address or DNS name of the ingress controller. Similarly, if there is a `hosts` key in the `tls` `spec` that matches the DNS zone specified in the cert-manager `ClusterIssuer` resource, it will generate a signed certificate for it and store it in the specified Kubernetes `Secret` for use by the ingress controller.
-
 ```bash
 $ kubectl apply -f nginx-ingress.yaml 
 Warning: networking.k8s.io/v1beta1 Ingress is deprecated in v1.19+, unavailable in v1.22+; use networking.k8s.io/v1 Ingress
 ingress.networking.k8s.io/nginx created
 ```
 
+The ingress specifies that any HTTP or HTTPS traffic with a host header matching `nginx.lab.capstonec.net` be routed to the `nginx-svc` service. However, we don't have a DNS entry for `nginx.lab.capstonec.net` at this point nor do we have a certificate for it for HTTPS termination.
 
-## View NGINX Website
+This is where ExternalDNS and cert-manager come in. They are watching all `Ingress` resources. If there is a `host` key in the `rules` `spec` that matches the DNS domain we specified in the ExternalDNS configuration, it attempts to create a DNS CNAME record for it with a value that matches the IP address or DNS name of the ingress controller. Similarly, if there is a `hosts` key in the `tls` `spec` that matches the DNS zone specified in the cert-manager `ClusterIssuer` resource and the `cert-manager.io/cluster-issuer` annotation is present, it will generate a signed certificate for it and store it in the specified Kubernetes `Secret` for use by the ingress controller.
+
+## View our application
+
 Let's open our website, https://nginx.lab.capstonec.net, in our browser. Our browser uses DNS to resolve our host name, nginx.lab.capstonec.net. If we query DNS, we can see that Azure DNS has created a CNAME entry for our host name which points to the AWS load balancer which fronts our Contour ingress controller. Since we specified HTTPS in the URL, our browser needs to fetch the certificate for our site, verify the name it specifies corresponds to the host name we used, and validate it is signed by a certificate authority (CA) we trust. As you can see, our site has a certificate for our host name and it is signed by the Let's Encrypt CA.
 
 ![nginx.lab.capstonec.net in your browser](nginx.lab.capstonec.net-in-browser.png)
 
 ## Summary
 
-If you want or need help with your Kubernetes journey, Capstone IT is a VMware Modern Applications Partner as well as being an Azure Gold and AWS Select partner. If you are interested in finding out more and getting help with your Container, Cloud, and DevOps transformation, please [Contact Us](https://capstonec.com/contact-us/).
+EnternalDNS and cert-manager are just two of the many projects making Kubernetes easier to use, more automated, and more secure. If you want or need help with your Kubernetes journey, Capstone IT is a VMware Modern Applications Partner as well as being an Azure Gold and AWS Select partner. If you are interested in finding out more and getting help with your Container, Cloud, and DevOps transformation, please [Contact Us](https://capstonec.com/contact-us/).
 
 [Ken Rider](https://www.linkedin.com/in/kenrider) [@KenRider](https://twitter.com/KenRider)  
 Solutions Architect  
